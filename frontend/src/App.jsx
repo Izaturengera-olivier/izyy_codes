@@ -7,10 +7,12 @@ import About from './components/About'
 import Footer from './components/Footer'
 import Contact from './components/Contact'
 
+
 const App = () => {
 	return (
 		  <Router>
 			<Navbar />
+
 			<Routes>
 				<Route path="/" element={<Home />} />
 				<Route path="/about" element={<About />} />

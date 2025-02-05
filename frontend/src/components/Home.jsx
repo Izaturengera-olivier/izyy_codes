@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+
 import { ArrowRightIcon } from "@heroicons/react/24/solid";
 
 const Home = () => {
@@ -34,6 +35,7 @@ const Home = () => {
                 {post.featured_image && (
                   <img src={post.featured_image} alt={post.title} className="w-full h-48 object-cover" />
                 )}
+
                 <div className="p-4">
                   <h3 className="text-xl font-bold text-gray-900">{post.title}</h3>
                   <p className="text-gray-600 text-sm mt-2">By {post.author}</p>
