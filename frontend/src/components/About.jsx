@@ -1,4 +1,5 @@
 import { Briefcase, Users, CheckCircle } from "lucide-react";
+import image from "../assets/hello.jpg";
 
 const About = () => {
   return (
@@ -48,6 +49,7 @@ const About = () => {
           >
             Get in Touch
           </a>
+          <img src={image} alt="hello" className="w-48 h-48 mx-auto mt-6"/>
         </div>
       </div>
     </div>

@@ -1,13 +1,13 @@
 
 import { useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom"; // Import useNavigate hook
+import { useNavigate, Link } from "react-router-dom";
 
 const Login = () => {
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [message, setMessage] = useState("");
   const [token, setToken] = useState("");
-  const navigate = useNavigate(); // Initialize useNavigate hook for redirection
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -20,9 +20,7 @@ const Login = () => {
       localStorage.setItem("access_token", res.data.tokens.access);
       setToken(res.data.tokens.access);
       setMessage("Login successful!");
-
-      // Redirect to home page if login is successful
-      navigate("http://localhost:5173/");
+      navigate("/"); // Redirect to home page (using relative path)
     } catch (error) {
       setMessage(error.response?.data?.error || "Invalid credentials");
     }
@@ -54,6 +52,15 @@ const Login = () => {
             Login
           </button>
         </form>
+
+        <div className="mt-4 text-center"> {/* Added container for signup/reset links */}
+          <p>
+            Don't have an account? <Link to="/signup" className="text-blue-500 hover:underline">Sign Up</Link>
+          </p>
+          <p>
+            Forgot your password? <Link to="/forgot-password" className="text-blue-500 hover:underline">Reset Password</Link>
+          </p>
+        </div>
       </div>
     </div>
   );
