@@ -23,6 +23,7 @@ urlpatterns = [
     path('', include('api.urls')),
     path('api/register/', register, name='register'),
     path('api/login/', login, name='login'),
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,3 +1,5 @@
+from django.db.models import Q
+from django.http.response import JsonResponse
 from rest_framework import generics
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import AllowAny
@@ -142,6 +144,8 @@ def login(request):
         tokens = get_tokens_for_user(user)
         return Response({'message': 'Login successful', 'tokens': tokens})
     return Response({'error': 'Invalid credentials'}, status=400)
+
+
 @api_view(['POST'])
 def request_password_reset(request):
     email = request.data.get('email')
@@ -195,3 +199,5 @@ def verify_code_and_reset_password(request):
     cache.delete(f"reset_code_{user.id}")
 
     return Response({'message': 'Password reset successfully'}, status=status.HTTP_200_OK)
+
+

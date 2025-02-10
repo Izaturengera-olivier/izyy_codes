@@ -9,6 +9,7 @@ admin.site.register(User)
 admin.site.register(Tag)
 
 
+
 @admin.register(Contact)
 class ContactMessageAdmin(admin.ModelAdmin):
     list_display = ('name', 'email', 'created_at')
