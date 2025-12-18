@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Current Month Weather Summary</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Monthly Weather Summary</h2>
+            <p class="text-muted mb-0" style="font-size: 0.9rem;">
+                {{ current_date }}
+            </p>
+        </div>
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary">Back to Admin Dashboard</a>
+    </div>
+
+    <!-- Monthly data table -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Current Month Predicted Weather Counts</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Month</th>
+                            {% for w in weather_types %}
+                                <th>{{ w }}</th>
+                            {% endfor %}
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ current_month_label }}</td>
+                            {% for count in current_month_counts %}
+                                <td>{{ count }}</td>
+                            {% endfor %}
+                            <td class="fw-bold">{{ current_month_total }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly bar chart -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">Current Month Predicted Weather Bar Chart</h5>
+        </div>
+        <div class="card-body">
+            <canvas id="monthlyChart" height="120"></canvas>
+            <p class="text-muted mt-3 mb-0">
+                This chart shows how often each weather type was predicted in the current month,
+                based on all records stored in the database for this month.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Injected context data from Django
+    const weatherTypes = {{ weather_types|safe }};
+    const currentMonthLabel = "{{ current_month_label }}";
+    const currentMonthCounts = {{ current_month_counts|safe }};
+
+    const ctx = document.getElementById('monthlyChart').getContext('2d');
+
+    const backgroundColors = [
+        "rgba(75, 192, 192, 0.7)",
+        "rgba(255, 159, 64, 0.7)",
+        "rgba(153, 102, 255, 0.7)",
+        "rgba(54, 162, 235, 0.7)",
+        "rgba(255, 205, 86, 0.7)",
+        "rgba(255, 99, 132, 0.7)",
+        "rgba(54, 162, 235, 0.7)",
+        "rgba(255, 206, 86, 0.7)",
+        "rgba(75, 192, 192, 0.7)",
+        "rgba(153, 102, 255, 0.7)"
+    ];
+
+    const borderColors = [
+        "rgba(75, 192, 192, 1)",
+        "rgba(255, 159, 64, 1)",
+        "rgba(153, 102, 255, 1)",
+        "rgba(54, 162, 235, 1)",
+        "rgba(255, 205, 86, 1)",
+        "rgba(255, 99, 132, 1)",
+        "rgba(54, 162, 235, 1)",
+        "rgba(255, 206, 86, 1)",
+        "rgba(75, 192, 192, 1)",
+        "rgba(153, 102, 255, 1)"
+    ];
+
+    const datasets = [
+        {
+            label: currentMonthLabel,
+            data: currentMonthCounts,
+            backgroundColor: backgroundColors[0],
+            borderColor: borderColors[0],
+            borderWidth: 1
+        }
+    ];
+
+    new Chart(ctx, {
+        type: 'bar',
+            data: {
+                labels: weatherTypes,
+                datasets: datasets
+            },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Monthly Predicted Weather Summary'
+                },
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Weather Type'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Predictions this month'
+                    }
+                }
+            }
+        }
+    });
+</script>
+</body>
+</html>
+
+

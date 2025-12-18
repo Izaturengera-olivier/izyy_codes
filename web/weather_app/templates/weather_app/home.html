@@ -1,0 +1,179 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather Prediction System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'style.css' %}">
+<style>
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: 'Poppins', Arial, sans-serif;
+    color: #eaf2ff;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+.video-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    overflow: hidden;
+}
+.video-bg video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(circle at 20% 20%, rgba(13, 110, 253, 0.18), transparent 35%), radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.12), transparent 30%), linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.75));
+}
+.hero {
+    width: 92%;
+    max-width: 1200px;
+    text-align: center;
+    padding: 60px 32px 34px;
+    margin: 0 auto;
+    position: relative;
+}
+h1 { font-size: 3.1rem; margin-top: 6px; margin-bottom: 10px; color: #eaf2ff; letter-spacing: 0.6px; font-weight: 700; }
+p.subtitle { font-size: 1.1rem; opacity: 0.95; margin-bottom: 26px; color: #d7e4ff; }
+.tagline {
+    font-size: 1.02rem;
+    color: #cfe2ff;
+    margin: 4px 0 24px;
+    line-height: 1.55;
+}
+.nav-actions {
+    display: inline-flex;
+    justify-content: center;
+    gap: 22px;
+    margin-top: 30px;
+}
+.nav-actions a {
+    color: #eaf2ff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.02rem;
+    padding-bottom: 4px;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+.nav-actions a:hover {
+    border-bottom-color: rgba(159, 197, 255, 0.9);
+    color: #ffffff;
+}
+.footer {
+    margin-top: 32px;
+    font-size: 0.92rem;
+    color: #d4e6ff;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px 24px;
+    text-align: left;
+}
+.footer a {
+    color: #9fc5ff;
+    text-decoration: none;
+    font-weight: 600;
+}
+.footer a:hover { color: #ffffff; }
+.footer-title {
+    color: #eaf2ff;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 6px;
+}
+.footer ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 6px;
+}
+.footer li {
+    color: #d4e6ff;
+    font-weight: 500;
+}
+.footer .socials {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.footer .socials a {
+    border-bottom: 2px solid transparent;
+    padding-bottom: 2px;
+}
+.footer .socials a:hover { border-color: #9fc5ff; }
+.divider-accent {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(120deg, rgba(159,197,255,0.15), transparent 30%, rgba(255,255,255,0.08), transparent 70%, rgba(159,197,255,0.12));
+    opacity: 0.3;
+}
+</style>
+</head>
+<body>
+<div class="video-bg">
+    <video autoplay muted loop playsinline>
+        <source src="{% static 'background.mp4' %}" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+</div>
+<div class="overlay"></div>
+
+<div class="hero">
+  <div class="divider-accent"></div>
+
+  <h1 class="title">Weather Prediction System</h1>
+  <p class="tagline">Weather And Climate Information</p>
+  <p class="subtitle">Get precise forecasts, district insights, and manual predictions in a single, elegant dashboard designed to keep you ahead of changing conditions.</p>
+ 
+  <nav class="nav-actions" aria-label="Primary navigation">
+    <a href="/predict/">Live District Map</a>
+    <a href="/manual-predict/">Manual District Prediction</a>
+    <a href="{% url 'admin_login' %}">Admin Dashboard</a>
+  </nav>
+  <div class="footer">
+    <div>
+      <div class="footer-title">Services</div>
+      <ul>
+        <li>Live district weather map</li>
+        <li>Manual climate prediction</li>
+        <li>Admin analytics dashboard</li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-title">Social</div>
+      <div class="socials">
+        <a href="#" aria-label="Facebook">Facebook</a>
+        <a href="#" aria-label="Twitter">Twitter</a>
+        <a href="#" aria-label="Instagram">Instagram</a>
+      </div>
+    </div>
+    <div>
+      <div class="footer-title">More</div>
+      <ul>
+        <li><a href="{% url 'admin_login' %}">Admin Dashboard</a></li>
+        <li><a href="/predict/">Go to Live Map</a></li>
+        <li>© 2025 Weather Prediction System</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</body>
+</html>

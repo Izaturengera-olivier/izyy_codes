@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .card-header h5 {
+            margin: 0;
+        }
+        .table th, .table td {
+            vertical-align: middle !important;
+        }
+    </style>
+</head>
+<body>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="fw-bold mb-0">Weather Admin Dashboard</h1>
+        <div class="d-flex gap-2">
+            <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">Back to Home</a>
+            <a href="{% url 'admin_logout' %}" class="btn btn-danger btn-sm">Logout</a>
+        </div>
+    </div>
+
+    <!-- Train Model Section -->
+    <div class="card mb-4 shadow rounded-3">
+        <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-center">
+            <div class="d-flex align-items-center mb-3 mb-md-0">
+                <span class="badge bg-secondary me-2">Training</span>
+                <h5 class="mb-0">Train Model</h5>
+            </div>
+            <a href="{% url 'train' %}" class="btn btn-primary btn-lg ms-md-3">
+                Start Training
+            </a>
+        </div>
+    </div>
+
+    <!-- Monthly Weather Summary (from monthly_summary.html) -->
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="fw-bold mb-0" style="font-size: 1.4rem;">Monthly Weather Summary</h2>
+                <p class="text-muted mb-0" style="font-size: 0.85rem;">
+                    {{ current_date }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Current month summary table -->
+        <div class="card mb-3 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Current Month Predicted Weather Counts</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Month</th>
+                                {% for w in weather_types %}
+                                    <th>{{ w }}</th>
+                                {% endfor %}
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{{ current_month_label }}</td>
+                                {% for count in current_month_counts %}
+                                    <td>{{ count }}</td>
+                                {% endfor %}
+                                <td class="fw-bold">{{ current_month_total }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current month bar chart -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Current Month Predicted Weather Bar Chart</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart" height="120"></canvas>
+                <p class="text-muted mt-3 mb-0">
+                    This chart shows how often each weather type was predicted in the current month,
+                    based on all records stored in the database for this month.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weather Records Table -->
+    <div class="card mb-5 shadow rounded-3">
+        <div class="card-header bg-primary text-white rounded-top">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
+                <h5 class="mb-2 mb-lg-0">Recorded Weather Conditions</h5>
+                <!-- Simple client-side search controls -->
+                <form class="row g-2" id="weatherSearchForm" onsubmit="return false;">
+                    <div class="col-12 col-sm-4">
+                        <input type="text" class="form-control form-control-sm" id="searchDate"
+                               placeholder="Search by date (e.g. 2024-01-15)">
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <input type="text" class="form-control form-control-sm" id="searchMonth"
+                               placeholder="Month (e.g. 01 or Jan)">
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <input type="text" class="form-control form-control-sm" id="searchYear"
+                               placeholder="Year (e.g. 2024)">
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" id="weatherTableWrapper" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-bordered table-striped mb-0" aria-label="Weather Records Table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Max Temp (°C)</th>
+                            <th>Min Temp (°C)</th>
+                            <th>Humidity (%)</th>
+                            <th>Precip (mm)</th>
+                            <th>Pressure (hPa)</th>
+                            <th>Visibility (km)</th>
+                            <th>Wind Speed (km/h)</th>
+                            <th>Cloud (%)</th>
+                            <th>Prediction</th>
+                        </tr>
+                    </thead>
+                    <tbody id="weatherTableBody">
+                        {% for record in weather_records %}
+                        <tr class="weather-row">
+                            <td class="weather-date">{{ record.date }}</td>
+                            <td>{{ record.temp_max }}</td>
+                            <td>{{ record.temp_min }}</td>
+                            <td>{{ record.humidity }}</td>
+                            <td>{{ record.precipitation }}</td>
+                            <td>{{ record.pressure }}</td>
+                            <td>{{ record.visibility }}</td>
+                            <td>{{ record.wind_speed }}</td>
+                            <td>{{ record.cloud_cover }}</td>
+                            <td class="fw-bold">{{ record.prediction }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center text-muted">No weather records found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-2 text-center">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="toggleRowsBtn" style="display:none;">
+                    Show more records
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Weather Prediction Chart -->
+    <div class="card shadow rounded-3">
+        <div class="card-header bg-success text-white rounded-top">
+            <h5>Monthly Weather Predictions Overview</h5>
+        </div>
+        <div class="card-body">
+            <!-- Div holding monthly aggregated data visualization -->
+            <canvas id="weatherChart" height="120"></canvas>
+            <p class="text-muted mt-3 mb-0">
+                This bar chart summarizes how often each predicted weather type occurs in every month,
+                based on all saved weather records in the database.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Wait for DOM to be ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Convert Django context variables to JS
+        const monthLabels = {{ month_labels|safe }};
+        const weatherTypes = {{ weather_types|safe }};
+        const monthCounts = {{ month_counts|safe }};
+        const currentMonthLabel = "{{ current_month_label }}";
+        const currentMonthCounts = {{ current_month_counts|safe }};
+
+        // Parse JSON strings if they are strings
+        const parsedMonthLabels = typeof monthLabels === 'string' ? JSON.parse(monthLabels) : monthLabels;
+        const parsedWeatherTypes = typeof weatherTypes === 'string' ? JSON.parse(weatherTypes) : weatherTypes;
+        const parsedMonthCounts = typeof monthCounts === 'string' ? JSON.parse(monthCounts) : monthCounts;
+
+        // -----------------------------
+        // Table search & compact view
+        // -----------------------------
+        const searchDateInput = document.getElementById('searchDate');
+        const searchMonthInput = document.getElementById('searchMonth');
+        const searchYearInput = document.getElementById('searchYear');
+        const tableBody = document.getElementById('weatherTableBody');
+        const toggleRowsBtn = document.getElementById('toggleRowsBtn');
+
+        if (tableBody) {
+            const allRows = Array.from(tableBody.querySelectorAll('tr.weather-row'));
+            const MAX_VISIBLE_ROWS = 10;
+            let showingAllRows = false;
+
+            function applyRowLimit() {
+                if (allRows.length <= MAX_VISIBLE_ROWS || showingAllRows) {
+                    allRows.forEach(row => row.classList.remove('d-none-limit'));
+                    if (toggleRowsBtn) toggleRowsBtn.style.display = allRows.length > MAX_VISIBLE_ROWS ? 'inline-block' : 'none';
+                    if (toggleRowsBtn) toggleRowsBtn.textContent = showingAllRows ? 'Show fewer records' : 'Show more records';
+                    return;
+                }
+
+                allRows.forEach((row, index) => {
+                    if (index < MAX_VISIBLE_ROWS) {
+                        row.classList.remove('d-none-limit');
+                    } else {
+                        row.classList.add('d-none-limit');
+                    }
+                });
+
+                if (toggleRowsBtn) {
+                    toggleRowsBtn.style.display = 'inline-block';
+                    toggleRowsBtn.textContent = 'Show more records';
+                }
+            }
+
+            function filterTable() {
+                const dateQuery = (searchDateInput?.value || '').toLowerCase().trim();
+                const monthQuery = (searchMonthInput?.value || '').toLowerCase().trim();
+                const yearQuery = (searchYearInput?.value || '').toLowerCase().trim();
+
+                allRows.forEach(row => {
+                    const dateCell = row.querySelector('.weather-date');
+                    const dateText = (dateCell?.textContent || '').toLowerCase();
+
+                    let isMatch = true;
+                    if (dateQuery && !dateText.includes(dateQuery)) {
+                        isMatch = false;
+                    }
+                    if (monthQuery && !dateText.includes(monthQuery)) {
+                        isMatch = false;
+                    }
+                    if (yearQuery && !dateText.includes(yearQuery)) {
+                        isMatch = false;
+                    }
+
+                    row.style.display = isMatch ? '' : 'none';
+                });
+
+                // After filtering, adjust compact view for visible rows only
+                showingAllRows = false;
+                applyRowLimit();
+            }
+
+            // Initial compact view
+            applyRowLimit();
+
+            // Hook up search inputs
+            if (searchDateInput) searchDateInput.addEventListener('input', filterTable);
+            if (searchMonthInput) searchMonthInput.addEventListener('input', filterTable);
+            if (searchYearInput) searchYearInput.addEventListener('input', filterTable);
+
+            // Toggle show more / fewer
+            if (toggleRowsBtn) {
+                toggleRowsBtn.addEventListener('click', function () {
+                    showingAllRows = !showingAllRows;
+                    applyRowLimit();
+                });
+            }
+        }
+
+        const canvas = document.getElementById('weatherChart');
+        const monthlyCanvas = document.getElementById('monthlyChart');
+        if (!canvas) {
+            console.error('Canvas element for yearly chart not found');
+        }
+        const ctx = canvas ? canvas.getContext('2d') : null;
+
+    // Expanded color palette for better differentiation
+    const backgroundColors = [
+        "rgba(75, 192, 192, 0.7)",
+        "rgba(255, 159, 64, 0.7)",
+        "rgba(153, 102, 255, 0.7)",
+        "rgba(54, 162, 235, 0.7)",
+        "rgba(255, 205, 86, 0.7)",
+        "rgba(255, 99, 132, 0.7)",
+        "rgba(54, 162, 235, 0.7)",
+        "rgba(255, 206, 86, 0.7)",
+        "rgba(75, 192, 192, 0.7)",
+        "rgba(153, 102, 255, 0.7)"
+    ];
+
+    const borderColors = [
+        "rgba(75, 192, 192, 1)",
+        "rgba(255, 159, 64, 1)",
+        "rgba(153, 102, 255, 1)",
+        "rgba(54, 162, 235, 1)",
+        "rgba(255, 205, 86, 1)",
+        "rgba(255, 99, 132, 1)",
+        "rgba(54, 162, 235, 1)",
+        "rgba(255, 206, 86, 1)",
+        "rgba(75, 192, 192, 1)",
+        "rgba(153, 102, 255, 1)"
+    ];
+
+    // Handle empty data case for yearly overview chart
+    if (canvas && (parsedMonthLabels.length === 0 || parsedWeatherTypes.length === 0)) {
+        canvas.style.display = 'none';
+        const yearlyCardBody = canvas.closest('.card-body');
+        if (yearlyCardBody) {
+            yearlyCardBody.innerHTML = '<p class="text-center text-muted">No data available for the chart.</p>';
+        }
+    } else if (canvas && ctx) {
+        const datasets = parsedWeatherTypes.map((type, index) => {
+            return {
+                label: type,
+                data: parsedMonthCounts.map(month => month[index] || 0),
+                backgroundColor: backgroundColors[index % backgroundColors.length],
+                borderColor: borderColors[index % borderColors.length],
+                borderWidth: 1
+            };
+        });
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: parsedMonthLabels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Predicted Weather Types per Month',
+                        font: { size: 18 }
+                    },
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    x: { stacked: true, title: { display: true, text: 'Month' } },
+                    y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Count' } }
+                }
+            }
+        });
+    }
+
+    // Current month bar chart (single-month summary)
+    if (monthlyCanvas && Array.isArray(currentMonthCounts) && currentMonthCounts.length && parsedWeatherTypes.length) {
+        const monthlyCtx = monthlyCanvas.getContext('2d');
+
+        const monthlyDataset = [{
+            label: currentMonthLabel,
+            data: currentMonthCounts,
+            backgroundColor: backgroundColors[0],
+            borderColor: borderColors[0],
+            borderWidth: 1
+        }];
+
+        new Chart(monthlyCtx, {
+            type: 'bar',
+            data: {
+                labels: parsedWeatherTypes,
+                datasets: monthlyDataset
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Monthly Predicted Weather Summary'
+                    },
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Weather Type'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Predictions this month'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    });
+</script>
+</body>
+</html>

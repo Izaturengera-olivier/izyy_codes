@@ -1,0 +1,90 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+downloads/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-wheel-metadata/
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+venv.bak/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets and config
+.env
+.env.*
+local_settings.py
+
+# Jupyter
+.ipynb_checkpoints
+
+# Type checkers
+.mypy_cache/
+.pytype/
+
+# Django
+*.log
+db.sqlite3
+/web/db.sqlite3
+media/
+
+# Model and data artifacts
+*.joblib
+*.pkl
+*.sav
+*.h5
+model.joblib
+
+# Logs and temp
+*.log
+*.tmp
+tmp/
+
+# Python packaging
+*.egg
+*.whl
+
+# Coverage and profiling
+coverage.xml
+
+# Others
+node_modules/
+
+# Keep sample data in repo; do not ignore /data by default
+# Add other local files to ignore as needed

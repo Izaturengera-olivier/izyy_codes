@@ -1,0 +1,417 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Make a Prediction</title>
+{% load static %}
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Poppins', Arial, sans-serif;
+    background-size: cover;
+    min-height: 100vh;
+    position: relative;
+    color: #eaf2ff;
+}
+
+.video-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    overflow: hidden;
+}
+.video-bg video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(circle at 20% 20%, rgba(13, 110, 253, 0.18), transparent 35%),
+                radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.12), transparent 30%),
+                linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.75));
+}
+
+.container {
+    background: rgba(15, 23, 42, 0.35);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    padding: 30px;
+    border-radius: 20px;
+    margin-top: 40px;
+    margin-bottom: 40px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #eaf2ff;
+}
+
+.form-wrapper {
+    max-width: 520px;
+    margin: 80px auto 40px;
+    padding: 28px 26px 32px;
+    border-radius: 20px;
+    background: rgba(15, 23, 42, 0.65);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.16);
+    color: #eaf2ff;
+}
+
+.back-link {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    padding: 10px 20px;
+    background: rgba(13, 110, 253, 0.9);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.back-link:hover {
+    background: rgba(13, 110, 253, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.4);
+    color: white;
+}
+
+h1 {
+    color: #ffffff;
+    margin-bottom: 20px;
+}
+
+label {
+    font-weight: bold;
+    color: #ffffff;
+    display: block;
+    text-align: center;
+}
+
+.form-control,
+.form-select {
+    width: 50% !important;
+    margin: 0 auto !important;
+    background: transparent !important;
+    color: #eaf2ff !important;
+    border-color: rgba(148, 163, 184, 0.8) !important;
+}
+.form-select option {
+    color: #000000;
+    background-color: #ffffff;
+}
+.form-select option:disabled {
+    color: #6c757d;
+}
+.form-control::placeholder {
+    color: rgba(226, 232, 240, 0.7);
+}
+.form-control:focus,
+.form-select:focus {
+    background: transparent !important;
+    color: #ffffff !important;
+    border-color: rgba(59, 130, 246, 0.9) !important;
+    box-shadow: 0 0 0 0.15rem rgba(59, 130, 246, 0.4) !important;
+}
+
+.prediction {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 12px;
+    background: rgba(75, 56, 50, 0.1);
+}
+
+/* Popup styling */
+.result-popup {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: 1050;
+    max-width: 420px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #0d47a1, #1976d2);
+    color: #ffffff;
+    font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    overflow: hidden;
+}
+.result-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(13,110,253,0.95);
+}
+.result-popup-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+.result-popup-body {
+    padding: 0.75rem 1rem 0.5rem;
+}
+.result-popup-footer {
+    padding: 0.5rem 1rem 0.75rem;
+    text-align: right;
+}
+.result-popup-close {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.weather-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(13,110,253,0.06);
+    margin-bottom: 8px;
+}
+.weather-chip-icon {
+    font-size: 1.6rem;
+}
+.weather-chip-label {
+    font-weight: 600;
+    color: #fff;
+}
+.weather-chip-value {
+    color: #e3f2fd;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+}
+
+
+</style>
+</head>
+
+<body>
+<div class="video-bg">
+  <video autoplay muted loop playsinline>
+      <source src="{% static 'background.mp4' %}" type="video/mp4">
+      Your browser does not support the video tag.
+  </video>
+</div>
+<div class="overlay"></div>
+
+<div class="form-wrapper">
+  <h1 class="text-center">Make a Prediction</h1>
+
+  <!-- FORM WITH VALIDATION -->
+  <form method="post" class="mt-4 needs-validation" novalidate>
+    {% csrf_token %}
+
+  <!-- DISTRICT -->
+  <div class="mb-3">
+    <label for="district" class="form-label">District *</label>
+    <select class="form-select" name="district" id="district" required>
+      <option value="">Select a district</option>
+      {% for d in districts %}
+        <option value="{{ d }}" {% if d == selected_district %}selected{% endif %}>{{ d }}</option>
+      {% endfor %}
+    </select>
+    <div class="invalid-feedback">Please select a district.</div>
+  </div>
+
+  <!-- DATE -->
+  <div class="mb-3">
+    <label for="date" class="form-label">Date *</label>
+    <input
+      type="date"
+      class="form-control"
+      name="date"
+      id="date"
+      value="{% if selected_date %}{{ selected_date|date:'Y-m-d' }}{% endif %}"
+      required
+    >
+    <div class="invalid-feedback">Please select a valid date.</div>
+  </div>
+
+  <!-- TEMP MAX -->
+  <div class="mb-3">
+    <label for="temp_max" class="form-label">Temp Max (°C) *</label>
+    <input type="number" class="form-control" step="0.1" name="temp_max" id="temp_max" required>
+    <div class="invalid-feedback">Please enter maximum temperature.</div>
+  </div>
+
+  <!-- TEMP MIN -->
+  <div class="mb-3">
+    <label for="temp_min" class="form-label">Temp Min (°C) *</label>
+    <input type="number" class="form-control" step="0.1" name="temp_min" id="temp_min" required>
+    <div class="invalid-feedback">Please enter minimum temperature.</div>
+  </div>
+
+  <!-- PRECIPITATION -->
+  <div class="mb-3">
+    <label for="precipitation" class="form-label">Precipitation (mm) *</label>
+    <input type="number" class="form-control" step="0.01" name="precipitation" id="precipitation" required min="0">
+    <div class="invalid-feedback">Precipitation must be a positive number.</div>
+  </div>
+
+  <!-- HUMIDITY -->
+  <div class="mb-3">
+    <label for="humidity" class="form-label">Humidity (%) *</label>
+    <input type="number" class="form-control" step="0.1" name="humidity" id="humidity" required min="0" max="100">
+    <div class="invalid-feedback">Humidity must be between 0 and 100%.</div>
+  </div>
+
+  <!-- WIND SPEED -->
+  <div class="mb-3">
+    <label for="wind_speed" class="form-label">Wind Speed (km/h) *</label>
+    <input type="number" class="form-control" step="0.1" name="wind_speed" id="wind_speed" required min="0">
+    <div class="invalid-feedback">Wind speed must be zero or higher.</div>
+  </div>
+
+  <hr>
+  <small class="text-muted">Optional fields</small>
+
+  <!-- OPTIONAL FIELDS -->
+
+  <div class="mb-3">
+    <label for="pressure" class="form-label">Pressure (hPa)</label>
+    <input type="number" class="form-control" step="0.1" name="pressure" id="pressure">
+  </div>
+
+  <div class="mb-3">
+    <label for="visibility" class="form-label">Visibility (km)</label>
+    <input type="number" class="form-control" step="0.1" name="visibility" id="visibility">
+  </div>
+
+  <div class="mb-3">
+    <label for="cloud_cover" class="form-label">Cloud Cover (%)</label>
+    <input type="number" class="form-control" step="0.1" name="cloud_cover" id="cloud_cover" min="0" max="100">
+  </div>
+
+  <button type="submit" class="btn btn-dark w-100">Predict</button>
+  </form>
+
+  <!-- ALERTS -->
+  {% if error %}
+    <div class="prediction alert alert-danger mt-3">
+      <strong>Error:</strong> {{ error }}
+    </div>
+  {% endif %}
+</div>
+
+{# Custom popup for nicely styled prediction summary #}
+{% if morning_prediction or afternoon_prediction or night_prediction %}
+<div id="resultPopup" class="result-popup shadow-lg">
+  <div class="result-popup-header">
+    <h5 class="result-popup-title mb-0">
+      Weather for
+      {% if selected_district %}{{ selected_district }}{% else %}Selected District{% endif %}
+      {% if selected_date %} on {{ selected_date|date:"F d, Y" }}{% endif %}
+    </h5>
+    <button type="button" id="popupCloseIcon" class="result-popup-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="result-popup-body">
+    {% if morning_prediction %}
+    <div class="weather-chip">
+      <span class="weather-chip-icon">
+        {% with pred=morning_prediction %}
+          {% if pred == 'sunny' %}☀️{% elif pred == 'rainy' %}🌧️{% elif pred == 'cloudy' or pred == 'overcast' %}☁️{% elif pred == 'storm' %}⛅⛈️{% elif pred == 'fog' %}🌫️{% elif pred == 'partly_cloudy' %}⛅{% elif pred == 'clear_night' %}🌙{% else %}📍{% endif %}
+        {% endwith %}
+      </span>
+      <div>
+        <div class="weather-chip-label">Morning (6 AM)</div>
+        <div class="weather-chip-value">{{ morning_prediction }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if afternoon_prediction %}
+    <div class="weather-chip">
+      <span class="weather-chip-icon">
+        {% with pred=afternoon_prediction %}
+          {% if pred == 'sunny' %}☀️{% elif pred == 'rainy' %}🌧️{% elif pred == 'cloudy' or pred == 'overcast' %}☁️{% elif pred == 'storm' %}⛈️{% elif pred == 'fog' %}🌫️{% elif pred == 'partly_cloudy' %}⛅{% elif pred == 'clear_night' %}🌙{% else %}📍{% endif %}
+        {% endwith %}
+      </span>
+      <div>
+        <div class="weather-chip-label">Afternoon (2 PM)</div>
+        <div class="weather-chip-value">{{ afternoon_prediction }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if night_prediction %}
+    <div class="weather-chip">
+      <span class="weather-chip-icon">
+        {% with pred=night_prediction %}
+          {% if pred == 'sunny' %}☀️{% elif pred == 'rainy' %}🌧️{% elif pred == 'cloudy' or pred == 'overcast' %}☁️{% elif pred == 'storm' %}⛈️{% elif pred == 'fog' %}🌫️{% elif pred == 'partly_cloudy' %}⛅{% elif pred == 'clear_night' %}🌙{% else %}📍{% endif %}
+        {% endwith %}
+      </span>
+      <div>
+        <div class="weather-chip-label">Night (10 PM)</div>
+        <div class="weather-chip-value">{{ night_prediction }}</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  <div class="result-popup-footer">
+    <button type="button" id="popupCloseBtn" class="btn btn-light btn-sm">Close</button>
+  </div>
+</div>
+{% endif %}
+
+<a href="/" class="back-link">Back to Home</a>
+
+<!-- Bootstrap JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- FORM VALIDATION SCRIPT -->
+<script>
+(() => {
+  'use strict';
+  const forms = document.querySelectorAll('.needs-validation');
+
+  Array.from(forms).forEach(form => {
+    form.addEventListener('submit', event => {
+      if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      form.classList.add('was-validated');
+    }, false);
+  });
+})();
+
+// Automatically show and wire up the custom result popup when predictions are available
+{% if morning_prediction or afternoon_prediction or night_prediction %}
+document.addEventListener('DOMContentLoaded', function () {
+  var popup = document.getElementById('resultPopup');
+  if (!popup) return;
+
+  function hidePopup() {
+    popup.style.display = 'none';
+  }
+
+  var closeIcon = document.getElementById('popupCloseIcon');
+  var closeBtn = document.getElementById('popupCloseBtn');
+
+  if (closeIcon) {
+    closeIcon.addEventListener('click', hidePopup);
+  }
+  if (closeBtn) {
+    closeBtn.addEventListener('click', hidePopup);
+  }
+});
+{% endif %}
+</script>
+
+</body>
+</html>

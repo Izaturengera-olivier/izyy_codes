@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rwanda Weather Dashboard</title>
+{% load static %}
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Leaflet (LOCAL STATIC FILES ONLY) -->
+  <link rel="stylesheet" href="{% static 'leaflet/leaflet.css' %}">
+  <script src="{% static 'leaflet/leaflet.js' %}"></script>
+
+  <style>
+    #rwanda-map {
+      height: 600px;
+      width: 100%;
+      border-radius: 10px;
+      z-index: 1;
+      background-color: #ffffff;
+    }
+    .card {
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    .weather-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-weight: bold;
+      margin: 2px;
+    }
+    .sunny { background-color: #FFD700; color: #000; }
+    .cloudy { background-color: #87CEEB; color: #000; }
+    .rainy { background-color: #4682B4; color: #fff; }
+    .storm { background-color: #2F4F4F; color: #fff; }
+    .fog { background-color: #D3D3D3; color: #000; }
+    .partly_cloudy { background-color: #B0C4DE; color: #000; }
+    .overcast { background-color: #708090; color: #fff; }
+    .clear_night { background-color: #1e3a8a; color: #fff; }
+    .time-period {
+      border-left: 3px solid #007bff;
+      padding-left: 10px;
+      margin: 10px 0;
+    }
+    .time-period.morning { border-color: #FFA500; }
+    .time-period.afternoon { border-color: #FFD700; }
+    .time-period.night { border-color: #191970; }
+    .date-display {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 0.95em;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      border: 2px solid #007bff;
+      color: #007bff;
+    }
+    .district-tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      pointer-events: none;
+      z-index: 2000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      min-width: 250px;
+      max-width: 300px;
+    }
+    .district-tooltip h6 {
+      color: #4FC3F7;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    .district-tooltip .weather-info {
+      margin: 4px 0;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    .district-tooltip .weather-info:last-child {
+      border-bottom: none;
+    }
+    .leaflet-interactive {
+      cursor: pointer;
+    }
+    /* Disable default Leaflet SVG strokes so districts stay invisible */
+    .leaflet-pane svg path {
+      stroke: transparent !important;
+      stroke-width: 0 !important;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container mt-4">
+  <div class="row">
+    <!-- District Selection and Map -->
+    <div class="col-lg-8">
+      <!-- District Selection Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h4 class="mb-3">Select District to View Weather</h4>
+          <form method="post" id="districtForm">
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label">Select District</label>
+                <select name="district" id="districtSelect" class="form-select" required>
+                  <option value="" disabled selected>Choose a district...</option>
+                  {% for d in districts %}
+                    <option value="{{ d }}" {% if selected == d %}selected{% endif %}>{{ d }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-4 d-grid">
+                <button type="submit" class="btn btn-primary mt-4">View Weather</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Rwanda Map Card -->
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Rwanda Map</h5>
+          <button id="refresh-predictions-btn" class="btn btn-sm btn-light" onclick="loadPredictionsAsync()" title="Refresh predictions">
+            🔄 Refresh
+          </button>
+        </div>
+        <div class="card-body" style="position: relative;">
+          <div id="current-date-top" class="date-display"></div>
+          <div id="rwanda-map"></div>
+          <div id="district-tooltip" class="district-tooltip" style="display: none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weather Details Panel -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">Weather Forecast</h5>
+        </div>
+        <div class="card-body">
+          {% if selected and all_district_predictions %}
+            {% for district, data in all_district_predictions.items %}
+              {% if district == selected %}
+            <h4 class="text-primary mb-4">{{ selected }}</h4>
+            
+            <!-- Morning -->
+            <div class="time-period morning mb-3">
+              <strong>🌅 Morning (6 AM)</strong>
+              {% if data.morning.prediction %}
+                <div class="mt-2">
+                  <span class="weather-badge {{ data.morning.prediction }}">{{ data.morning.prediction|title }}</span>
+                  {% if data.morning.weather %}
+                    <div class="mt-2">
+                      <p class="mb-1"><strong>Temperature:</strong> {{ data.morning.weather.temp_max|floatformat:1 }}°C</p>
+                      <p class="mb-1"><strong>Humidity:</strong> {{ data.morning.weather.humidity|floatformat:0 }}%</p>
+                      <p class="mb-1"><strong>Wind Speed:</strong> {{ data.morning.weather.wind_speed|floatformat:1 }} km/h</p>
+                      <p class="mb-1"><strong>Cloud Cover:</strong> {{ data.morning.weather.cloud_cover|floatformat:0 }}%</p>
+                      {% if data.morning.weather.precipitation %}
+                        <p class="mb-0"><strong>Precipitation:</strong> {{ data.morning.weather.precipitation|floatformat:1 }} mm</p>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                </div>
+              {% else %}
+                <p class="text-danger small mt-2">No data available</p>
+              {% endif %}
+            </div>
+
+            <!-- Afternoon -->
+            <div class="time-period afternoon mb-3">
+              <strong>☀️ Afternoon (2 PM)</strong>
+              {% if data.afternoon.prediction %}
+                <div class="mt-2">
+                  <span class="weather-badge {{ data.afternoon.prediction }}">{{ data.afternoon.prediction|title }}</span>
+                  {% if data.afternoon.weather %}
+                    <div class="mt-2">
+                      <p class="mb-1"><strong>Temperature:</strong> {{ data.afternoon.weather.temp_max|floatformat:1 }}°C</p>
+                      <p class="mb-1"><strong>Humidity:</strong> {{ data.afternoon.weather.humidity|floatformat:0 }}%</p>
+                      <p class="mb-1"><strong>Wind Speed:</strong> {{ data.afternoon.weather.wind_speed|floatformat:1 }} km/h</p>
+                      <p class="mb-1"><strong>Cloud Cover:</strong> {{ data.afternoon.weather.cloud_cover|floatformat:0 }}%</p>
+                      {% if data.afternoon.weather.precipitation %}
+                        <p class="mb-0"><strong>Precipitation:</strong> {{ data.afternoon.weather.precipitation|floatformat:1 }} mm</p>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                </div>
+              {% else %}
+                <p class="text-danger small mt-2">No data available</p>
+              {% endif %}
+            </div>
+
+            <!-- Night -->
+            <div class="time-period night mb-3">
+              <strong>🌙 Night (10 PM)</strong>
+              {% if data.night.prediction %}
+                <div class="mt-2">
+                  <span class="weather-badge {{ data.night.prediction }}">{{ data.night.prediction|title }}</span>
+                  {% if data.night.weather %}
+                    <div class="mt-2">
+                      <p class="mb-1"><strong>Temperature:</strong> {{ data.night.weather.temp_max|floatformat:1 }}°C</p>
+                      <p class="mb-1"><strong>Humidity:</strong> {{ data.night.weather.humidity|floatformat:0 }}%</p>
+                      <p class="mb-1"><strong>Wind Speed:</strong> {{ data.night.weather.wind_speed|floatformat:1 }} km/h</p>
+                      <p class="mb-1"><strong>Cloud Cover:</strong> {{ data.night.weather.cloud_cover|floatformat:0 }}%</p>
+                      {% if data.night.weather.precipitation %}
+                        <p class="mb-0"><strong>Precipitation:</strong> {{ data.night.weather.precipitation|floatformat:1 }} mm</p>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                </div>
+              {% else %}
+                <p class="text-danger small mt-2">No data available</p>
+              {% endif %}
+            </div>
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            <p class="text-muted">Please select a district to view weather predictions.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // Global variables for async loading
+  var districtsData = {};
+  var predictionsLoaded = false;
+  var loadingPredictions = false;
+  
+  // Wait for DOM to be ready and then initialize the map
+  document.addEventListener('DOMContentLoaded', function() {
+    // Check that Leaflet is available
+    if (typeof L === 'undefined') {
+      console.error('Leaflet library not loaded! Make sure leaflet.js is included.');
+      return;
+    }
+    
+    // Initialize map first (fast)
+    initializeMap();
+    
+    // Load predictions asynchronously (non-blocking)
+    loadPredictionsAsync();
+  });
+  
+  // Async function to load predictions from API
+  function loadPredictionsAsync(showLoading = true) {
+    if (loadingPredictions) return;
+    loadingPredictions = true;
+    
+    // Show loading indicator
+    var mapContainer = document.getElementById('rwanda-map');
+    var loadingDiv = document.getElementById('predictions-loading');
+    
+    if (showLoading && mapContainer && !loadingDiv) {
+      loadingDiv = document.createElement('div');
+      loadingDiv.id = 'predictions-loading';
+      loadingDiv.style.cssText = 'position: absolute; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(0,123,255,0.95); color: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1001; text-align: center; font-weight: 500;';
+      loadingDiv.innerHTML = '🔄 Loading weather predictions...';
+      mapContainer.appendChild(loadingDiv);
+    } else if (loadingDiv && showLoading) {
+      loadingDiv.innerHTML = '🔄 Loading weather predictions...';
+      loadingDiv.style.background = 'rgba(0,123,255,0.95)';
+      loadingDiv.style.display = 'block';
+    }
+    
+    // Disable refresh button during loading
+    var refreshBtn = document.getElementById('refresh-predictions-btn');
+    if (refreshBtn) {
+      refreshBtn.disabled = true;
+      refreshBtn.innerHTML = '⏳ Loading...';
+    }
+    
+    // Clear cache by adding timestamp to force fresh data
+    var cacheBuster = '?t=' + new Date().getTime();
+    
+    // Fetch predictions from API
+    fetch('/api/predictions/' + cacheBuster)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to load predictions');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.predictions) {
+          districtsData = data.predictions;
+          predictionsLoaded = true;
+          
+          // Update map with predictions
+          updateMapWithPredictions();
+          
+          // Remove loading indicator
+          if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+            loadingDiv.remove();
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Error loading predictions:', error);
+        if (loadingDiv) {
+          loadingDiv.innerHTML = '⚠️ Error loading predictions. Using cached data.';
+          loadingDiv.style.background = 'rgba(220,53,69,0.95)';
+          setTimeout(() => {
+            if (loadingDiv && loadingDiv.parentNode) {
+              loadingDiv.style.display = 'none';
+            }
+          }, 3000);
+        }
+        // Fall back to server-rendered data if available
+        if (typeof window.serverDistrictsData !== 'undefined') {
+          districtsData = window.serverDistrictsData;
+          updateMapWithPredictions();
+        }
+      })
+      .finally(() => {
+        loadingPredictions = false;
+        // Re-enable refresh button
+        if (refreshBtn) {
+          refreshBtn.disabled = false;
+          refreshBtn.innerHTML = '🔄 Refresh';
+        }
+      });
+  }
+  
+  // Update map markers and tooltips with loaded predictions
+  function updateMapWithPredictions() {
+    if (!map) return;
+    
+    // Update existing layers with new prediction data
+    Object.keys(districtsData).forEach(function(districtName) {
+      var data = districtsData[districtName];
+      if (!data || !data.coords) return;
+      
+      // Update tooltip data for existing layers
+      if (districtLayers[districtName]) {
+        var layer = districtLayers[districtName];
+        if (layer && layer.on) {
+          // Re-bind events with new data
+          layer.off('mouseover mouseout mousemove');
+          layer.on({
+            mouseover: function(e) {
+              showDistrictTooltip(e, districtName, data);
+            },
+            mouseout: function(e) {
+              hideDistrictTooltip();
+            },
+            mousemove: function(e) {
+              updateTooltipPosition(e);
+            }
+          });
+        }
+      }
+    });
+    
+    // Update the global data reference for label layers
+    Object.keys(districtLayers).forEach(function(layerKey) {
+      if (layerKey.endsWith('_label')) {
+        var districtName = layerKey.replace('_label', '');
+        var data = districtsData[districtName];
+        if (data) {
+          // Update label layer events if needed
+          var layerGroup = districtLayers[layerKey];
+          if (layerGroup && layerGroup.eachLayer) {
+            layerGroup.eachLayer(function(layer) {
+              if (layer.on) {
+                layer.off('mouseover mouseout mousemove');
+                layer.on({
+                  mouseover: function(e) {
+                    showDistrictTooltip(e, districtName, data);
+                  },
+                  mouseout: function(e) {
+                    hideDistrictTooltip();
+                  },
+                  mousemove: function(e) {
+                    updateTooltipPosition(e);
+                  }
+                });
+              }
+            });
+          }
+        }
+      }
+    });
+  }
+  
+  function initializeMap() {
+    // Set current date from Django or JavaScript
+    var currentDateString = "{% if current_date %}{{ current_date }}{% else %}" + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + "{% endif %}";
+    var dateElement = document.getElementById('current-date-top');
+    if (dateElement) {
+      dateElement.textContent = currentDateString;
+    }
+    
+    // Show loading indicator
+    var mapContainer = document.getElementById('rwanda-map');
+    if (mapContainer) {
+      var loadingDiv = document.createElement('div');
+      loadingDiv.id = 'map-loading';
+      loadingDiv.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.95); padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; text-align: center;';
+      loadingDiv.innerHTML = '<div class="spinner-border text-primary" role="status" style="margin-bottom: 10px;"><span class="visually-hidden">Loading...</span></div><p style="margin: 0; font-weight: 500;">Loading Rwanda district map...</p>';
+      mapContainer.appendChild(loadingDiv);
+    }
+
+    // Rwanda boundaries (approximate) - to restrict map to Rwanda only
+    var rwandaBounds = L.latLngBounds(
+      [-2.85, 28.8],  // Southwest corner
+      [-1.0, 30.9]    // Northeast corner
+    );
+
+    // Initialize map centered on Rwanda; allow world view for context
+    var map = L.map('rwanda-map', {
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 0.5
+    }).setView([-1.9403, 29.8739], 6);
+
+    // Restrict zoom to keep map focused on Rwanda
+    map.setMaxBounds(rwandaBounds);
+
+    // Base tile layer for world context; fallback to blank if offline
+    var tileLayer;
+    try {
+      tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap contributors'
+      });
+      tileLayer.on('tileerror', function() {
+        console.warn('Tile load failed; continuing with blank background.');
+      });
+      tileLayer.addTo(map);
+    } catch (e) {
+      console.warn('Tile layer init failed; using blank background.', e);
+    }
+
+    // District coordinates and predictions from Django (fallback data)
+    // This will be replaced by async API call for better performance
+    var serverDistrictsData = {
+    {% for district, data in all_district_predictions.items %}
+    "{{ district }}": {
+      coords: [{{ data.coords.lat }}, {{ data.coords.lon }}],
+      morning: {
+        prediction: "{{ data.morning.prediction|default:'' }}",
+        temp: {{ data.morning.weather.temp_max|default:0 }},
+        humidity: {{ data.morning.weather.humidity|default:0 }},
+        wind: {{ data.morning.weather.wind_speed|default:0 }},
+        cloud: {{ data.morning.weather.cloud_cover|default:0 }},
+        precip: {{ data.morning.weather.precipitation|default:0 }}
+      },
+      afternoon: {
+        prediction: "{{ data.afternoon.prediction|default:'' }}",
+        temp: {{ data.afternoon.weather.temp_max|default:0 }},
+        humidity: {{ data.afternoon.weather.humidity|default:0 }},
+        wind: {{ data.afternoon.weather.wind_speed|default:0 }},
+        cloud: {{ data.afternoon.weather.cloud_cover|default:0 }},
+        precip: {{ data.afternoon.weather.precipitation|default:0 }}
+      },
+      night: {
+        prediction: "{{ data.night.prediction|default:'' }}",
+        temp: {{ data.night.weather.temp_max|default:0 }},
+        humidity: {{ data.night.weather.humidity|default:0 }},
+        wind: {{ data.night.weather.wind_speed|default:0 }},
+        cloud: {{ data.night.weather.cloud_cover|default:0 }},
+        precip: {{ data.night.weather.precipitation|default:0 }}
+      }
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  };
+    
+    // Make server data available globally for fallback
+    window.serverDistrictsData = serverDistrictsData;
+    
+    // Initialize with server data (will be updated by async call)
+    districtsData = serverDistrictsData;
+    
+    // Set up auto-refresh every 5 minutes (300000ms)
+    setInterval(function() {
+      if (predictionsLoaded) {
+        loadPredictionsAsync(false); // Silent refresh
+      }
+    }, 300000); // 5 minutes
+
+    var currentMarker = null;
+    var districtLayers = {};
+    var tooltip = document.getElementById('district-tooltip');
+    
+    if (!mapContainer) {
+      console.error('Map container not found!');
+      return;
+    }
+
+    // Function to get weather icon/color based on prediction
+    function getWeatherIcon(prediction) {
+    var icons = {
+      'sunny': { color: '#FFD700', icon: '☀️', borderColor: '#FFA500' },
+      'cloudy': { color: '#87CEEB', icon: '☁️', borderColor: '#5F9EA0' },
+      'rainy': { color: '#4682B4', icon: '🌧️', borderColor: '#2E5090' },
+      'storm': { color: '#2F4F4F', icon: '⛈️', borderColor: '#1C2E2E' },
+      'fog': { color: '#D3D3D3', icon: '🌫️', borderColor: '#A9A9A9' },
+      'partly_cloudy': { color: '#B0C4DE', icon: '⛅', borderColor: '#8FA8C8' },
+      'overcast': { color: '#708090', icon: '☁️', borderColor: '#556B7A' },
+      'clear_night': { color: '#1e3a8a', icon: '🌙', borderColor: '#0f172a' }
+    };
+    return icons[prediction] || { color: '#808080', icon: '📍', borderColor: '#606060' };
+  }
+
+  // Create district labels only (no polygons)
+  function createDistrictLabel(districtName, data) {
+    var lat = data.coords[0];
+    var lon = data.coords[1];
+    
+    // Create invisible clickable area around the label for hover functionality
+    var clickableArea = L.circle([lat, lon], {
+      radius: 10000, // 10km radius for hover area
+      fill: false,
+      stroke: false,
+      interactive: true
+    });
+
+    // Add district label
+    var label = L.marker([lat, lon], {
+      icon: L.divIcon({
+        className: 'district-label',
+        html: '<div style="background: rgba(255,255,255,0.95); padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #000; text-align: center; white-space: nowrap; cursor: pointer; user-select: none;">' + districtName + '</div>',
+        iconSize: [100, 24],
+        iconAnchor: [50, 12]
+      }),
+      interactive: true
+    });
+
+    // Combine clickable area and label
+    var layerGroup = L.layerGroup([clickableArea, label]);
+
+    // Add hover events to both the area and label
+    function showHover(e) {
+      showDistrictTooltip(e, districtName, data);
+      // Highlight label on hover
+      var labelElement = label.getElement();
+      if (labelElement) {
+        var divElement = labelElement.querySelector('div');
+        if (divElement) {
+          divElement.style.backgroundColor = 'rgba(240, 248, 255, 0.95)';
+          divElement.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        }
+      }
+    }
+
+    function hideHover(e) {
+      hideDistrictTooltip();
+      // Reset label style
+      var labelElement = label.getElement();
+      if (labelElement) {
+        var divElement = labelElement.querySelector('div');
+        if (divElement) {
+          divElement.style.backgroundColor = 'rgba(255,255,255,0.95)';
+          divElement.style.boxShadow = 'none';
+        }
+      }
+    }
+
+    function moveTooltip(e) {
+      updateTooltipPosition(e);
+    }
+
+    clickableArea.on('mouseover', showHover);
+    clickableArea.on('mouseout', hideHover);
+    clickableArea.on('mousemove', moveTooltip);
+    
+    label.on('mouseover', showHover);
+    label.on('mouseout', hideHover);
+    label.on('mousemove', moveTooltip);
+
+    return layerGroup;
+  }
+
+  // Show tooltip with weather information (with debouncing for performance)
+  var tooltipTimeout = null;
+  function showDistrictTooltip(e, districtName, data) {
+    // Debounce tooltip updates to improve performance
+    if (tooltipTimeout) {
+      clearTimeout(tooltipTimeout);
+    }
+    
+    tooltipTimeout = setTimeout(function() {
+      // Handle both old format (with .temp, .humidity) and new format (with .weather)
+      var morningPred = data.morning?.prediction || data.morning?.prediction || 'N/A';
+      var afternoonPred = data.afternoon?.prediction || data.afternoon?.prediction || 'N/A';
+      var nightPred = data.night?.prediction || data.night?.prediction || 'N/A';
+      
+      var morningTemp = data.morning?.weather?.temp_max || data.morning?.temp || 0;
+      var morningHumidity = data.morning?.weather?.humidity || data.morning?.humidity || 0;
+      var afternoonTemp = data.afternoon?.weather?.temp_max || data.afternoon?.temp || 0;
+      var afternoonHumidity = data.afternoon?.weather?.humidity || data.afternoon?.humidity || 0;
+      var nightTemp = data.night?.weather?.temp_max || data.night?.temp || 0;
+      var nightHumidity = data.night?.weather?.humidity || data.night?.humidity || 0;
+      
+      var weather = getWeatherIcon(afternoonPred || 'sunny');
+      
+      var tooltipContent = '<h6>' + districtName + '</h6>' +
+        '<div class="weather-info">' +
+        '<strong>🌅 Morning:</strong> ' + (morningPred || 'N/A').toUpperCase() + '<br>' +
+        'Temp: ' + morningTemp.toFixed(1) + '°C | Humidity: ' + morningHumidity.toFixed(0) + '%' +
+        '</div>' +
+        '<div class="weather-info">' +
+        '<strong>☀️ Afternoon:</strong> ' + (afternoonPred || 'N/A').toUpperCase() + '<br>' +
+        'Temp: ' + afternoonTemp.toFixed(1) + '°C | Humidity: ' + afternoonHumidity.toFixed(0) + '%' +
+        '</div>' +
+        '<div class="weather-info">' +
+        '<strong>🌙 Night:</strong> ' + (nightPred || 'N/A').toUpperCase() + '<br>' +
+        'Temp: ' + nightTemp.toFixed(1) + '°C | Humidity: ' + nightHumidity.toFixed(0) + '%' +
+        '</div>';
+
+      tooltip.innerHTML = tooltipContent;
+      tooltip.style.display = 'block';
+      updateTooltipPosition(e);
+    }, 50); // 50ms debounce
+  }
+
+  // Hide tooltip
+  function hideDistrictTooltip() {
+    tooltip.style.display = 'none';
+  }
+
+  // Update tooltip position based on mouse
+  function updateTooltipPosition(e) {
+    if (!e) return;
+    
+    var containerRect = mapContainer.getBoundingClientRect();
+    var mouseX, mouseY;
+    
+    if (e.originalEvent) {
+      // Use actual mouse coordinates from the event
+      mouseX = e.originalEvent.clientX - containerRect.left;
+      mouseY = e.originalEvent.clientY - containerRect.top;
+    } else if (e.latlng) {
+      // Convert lat/lng to container point
+      var point = map.latLngToContainerPoint(e.latlng);
+      mouseX = point.x;
+      mouseY = point.y;
+    } else {
+      return;
+    }
+
+    // Position tooltip near cursor but prevent overflow
+    var tooltipWidth = tooltip.offsetWidth || 250;
+    var tooltipHeight = tooltip.offsetHeight || 150;
+    var offsetX = 15;
+    var offsetY = 10;
+    
+    // Adjust if tooltip would go off right edge
+    if (mouseX + offsetX + tooltipWidth > containerRect.width) {
+      offsetX = -tooltipWidth - 15;
+    }
+    
+    // Adjust if tooltip would go off bottom edge
+    if (mouseY + offsetY + tooltipHeight > containerRect.height) {
+      offsetY = -tooltipHeight - 10;
+    }
+
+    tooltip.style.left = (mouseX + offsetX) + 'px';
+    tooltip.style.top = (mouseY + offsetY) + 'px';
+  }
+
+  // Fallback: render only district labels (no circles or polygons) if GeoJSON fails.
+  function renderSimpleDistrictMarkers() {
+    // Remove loading indicator if present
+    var loadingDiv = document.getElementById('map-loading');
+    if (loadingDiv) {
+      loadingDiv.remove();
+    }
+
+    if (!map) {
+      console.error('Map object is not initialized for fallback rendering');
+      return;
+    }
+
+    Object.keys(districtsData).forEach(function (districtName) {
+      var data = districtsData[districtName];
+      if (!data || !data.coords) return;
+
+      // Only add district labels and hover tooltips (no visible circles or polygons)
+      var labelLayer = createDistrictLabel(districtName, data);
+      labelLayer.addTo(map);
+      districtLayers[districtName + '_label'] = labelLayer;
+    });
+
+    // Fit bounds to all fallback labels
+    var coordsArray = Object.values(districtsData).map(function(d){ return d.coords; });
+    if (coordsArray.length) {
+      map.fitBounds(coordsArray);
+    }
+  }
+
+    // Load actual Rwanda district boundaries from GeoJSON
+    // Use a local static copy first so the map works offline/CORS-safe,
+    // then fall back to external sources if needed.
+    var geojsonSources = [
+      "{% static 'rwanda_districts.geojson' %}",
+      'https://raw.githubusercontent.com/okfn/geojson-regions/master/geojson/2/admin2/RW.json',
+      'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/RWA/ADM2/geoBoundaries-RWA-ADM2.geojson',
+      'https://gist.githubusercontent.com/hrbrmstr/91ea5cc9474286c72838/raw/59421ff9b570ff47f49f7f3b062d86d62eb3330e/RW.geo.json',
+      'https://geojson.xyz/rwanda-districts.json'
+    ];
+    
+    var geojsonLoaded = false;
+    
+    function loadRwandaDistricts(sourceIndex) {
+    if (sourceIndex >= geojsonSources.length) {
+      // If all sources failed, render a simple fallback so users still see districts
+      console.error('All GeoJSON sources failed. Rendering simple markers fallback.');
+      renderSimpleDistrictMarkers();
+      return;
+    }
+    
+    console.log('Attempting to load GeoJSON from source ' + (sourceIndex + 1) + ': ' + geojsonSources[sourceIndex]);
+    
+    fetch(geojsonSources[sourceIndex], {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      cache: 'no-cache'
+    })
+      .then(response => {
+        console.log('Response status:', response.status, 'for', geojsonSources[sourceIndex]);
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+        return response.json();
+      })
+      .then(geojsonData => {
+        console.log('Successfully loaded GeoJSON data from source', sourceIndex + 1);
+        console.log('GeoJSON type:', geojsonData.type);
+        geojsonLoaded = true;
+        
+        // Remove loading indicator
+        var loadingDiv = document.getElementById('map-loading');
+        if (loadingDiv) {
+          loadingDiv.remove();
+        }
+        
+        // Ensure map is valid
+        if (!map) {
+          console.error('Map object is not initialized');
+          return;
+        }
+        
+        // Normalize district name matching - handle various property names
+        function normalizeDistrictName(name, properties) {
+          if (!name) {
+            // Try all possible property names
+            name = properties.name || properties.NAME_2 || properties.DISTRICT || 
+                   properties.ADM2_EN || properties.name_2 || properties.NAME || 
+                   properties.adm2_name || properties.ADM2 || properties.District;
+          }
+          
+          if (!name) return null;
+          name = name.toString().trim();
+          
+          // Exact match first
+          if (districtsData[name]) return name;
+          
+          // Try case-insensitive match
+          for (var d in districtsData) {
+            if (d.toLowerCase() === name.toLowerCase()) return d;
+          }
+          
+          // Try removing common suffixes/prefixes
+          var cleanName = name.replace(/^(District|Dist|DISTRICT|DIST)\s*/i, '').trim();
+          for (var d in districtsData) {
+            if (d.toLowerCase() === cleanName.toLowerCase()) return d;
+          }
+          
+          // Try matching with common variations
+          var nameVariations = {
+            'Kigali City': 'Kigali',
+            'Kigali': 'Kigali',
+            'KIGALI': 'Kigali'
+          };
+          
+          if (nameVariations[name]) {
+            return nameVariations[name];
+          }
+          
+          return null;
+        }
+        
+        // Check if GeoJSON data is valid
+        if (!geojsonData || !geojsonData.features || geojsonData.features.length === 0) {
+          console.error('Invalid GeoJSON data: no features found');
+          loadRwandaDistricts(sourceIndex + 1);
+          return;
+        }
+        
+        console.log('GeoJSON contains ' + geojsonData.features.length + ' features');
+        
+        // Style and add districts from GeoJSON - here we keep polygons invisible and only show labels/tooltips
+        var gjLayer = L.geoJSON(geojsonData, {
+          style: function(feature) {
+            var districtName = normalizeDistrictName(null, feature.properties);
+            var originalName = feature.properties.name || feature.properties.NAME_2 || feature.properties.DISTRICT || 
+                              feature.properties.ADM2_EN || feature.properties.name_2 || '';
+            var data = districtsData[districtName];
+            
+            return {
+              fillColor: 'transparent',
+              fillOpacity: 0,
+              color: 'transparent',
+              weight: 0,
+              opacity: 0,
+              fill: false,
+              interactive: true
+            };
+          },
+          onEachFeature: function(feature, layer) {
+            var districtName = normalizeDistrictName(null, feature.properties);
+            var data = districtsData[districtName];
+            
+            // Log unmatched districts for debugging
+            if (!districtName) {
+              var props = feature.properties;
+              console.log('Unmatched district:', props.name || props.NAME_2 || props.DISTRICT || props.ADM2_EN || props.name_2 || props);
+            }
+            
+            if (data) {
+              // Add district label at center
+              var bounds = layer.getBounds();
+              var center = bounds.getCenter();
+              var label = L.marker(center, {
+                icon: L.divIcon({
+                  className: 'district-label',
+                  html: '<div style="background: rgba(255,255,255,0.95); padding: 3px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; color: #000; text-align: center; white-space: nowrap; pointer-events: none;">' + districtName + '</div>',
+                  iconSize: [90, 20],
+                  iconAnchor: [45, 10]
+                }),
+                interactive: false
+              });
+              label.addTo(map);
+              
+              // Add hover events to the (invisible) district polygon so we still get tooltips
+              layer.on({
+                mouseover: function(e) {
+                  showDistrictTooltip(e, districtName, data);
+                },
+                mouseout: function(e) {
+                  hideDistrictTooltip();
+                },
+                mousemove: function(e) {
+                  updateTooltipPosition(e);
+                }
+              });
+              
+              districtLayers[districtName] = layer;
+            }
+          }
+        }).addTo(map);
+
+        // Zoom to Rwanda bounds (or the GeoJSON layer) so the shapes are visible immediately
+        try {
+          if (gjLayer && gjLayer.getBounds && gjLayer.getBounds().isValid()) {
+            map.fitBounds(gjLayer.getBounds());
+          } else {
+            map.fitBounds(rwandaBounds);
+          }
+        } catch (e) {
+          console.warn('Failed to fit bounds; using Rwanda defaults.', e);
+          map.fitBounds(rwandaBounds);
+        }
+      })
+      .catch(error => {
+        console.warn('GeoJSON source ' + (sourceIndex + 1) + ' failed:', error.message);
+        console.warn('URL:', geojsonSources[sourceIndex]);
+        // Try next source
+        setTimeout(function() {
+          loadRwandaDistricts(sourceIndex + 1);
+        }, 500);
+      });
+    }
+    
+    // Start loading real Rwanda district boundaries
+    // This will load actual GeoJSON with real district shapes, not circles
+    loadRwandaDistricts(0);
+  } // End of initializeMap function
+
+  // Create custom icons for markers (standalone, does not depend on inner helpers)
+  function createCustomIcon(prediction) {
+    var icons = {
+      'sunny': { color: '#FFD700', icon: '☀️' },
+      'cloudy': { color: '#87CEEB', icon: '☁️' },
+      'rainy': { color: '#4682B4', icon: '🌧️' },
+      'storm': { color: '#2F4F4F', icon: '⛈️' },
+      'fog': { color: '#D3D3D3', icon: '🌫️' },
+      'partly_cloudy': { color: '#B0C4DE', icon: '⛅' },
+      'overcast': { color: '#708090', icon: '☁️' },
+      'clear_night': { color: '#1e3a8a', icon: '🌙' }
+    };
+    var weather = icons[prediction] || { color: '#808080', icon: '📍' };
+
+    return L.divIcon({
+      className: 'custom-marker',
+      html: '<div style="background-color: ' + weather.color + '; width: 40px; height: 40px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">' + weather.icon + '</div>',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20]
+    });
+  }
+
+  // Function to show district on map
+  function showDistrict(districtName) {
+    var data = districtsData[districtName];
+    if (!data || !data.coords) return;
+
+    // Center map on district with appropriate zoom (no marker, no polygon highlight)
+    map.setView(data.coords, 10);
+  }
+
+  // Show selected district if one is selected
+  {% if selected %}
+    showDistrict("{{ selected }}");
+  {% endif %}
+
+  // Auto-submit form when district is selected (optional - can be removed if you prefer button click)
+  document.getElementById('districtSelect').addEventListener('change', function() {
+    // Optionally auto-submit, or keep the button requirement
+    // document.getElementById('districtForm').submit();
+  });
+</script>
+
+</body>
+</html>
